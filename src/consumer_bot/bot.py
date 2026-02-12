@@ -17,7 +17,6 @@ from fastapi import FastAPI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.prompts import PromptTemplate
-from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langserve import add_routes
 import json
@@ -192,61 +191,6 @@ def build_chain():
         | StrOutputParser()
     )
 
-def build_prompt_chain():
-    """构建 DeepSeek 直连最小链（用于 prompt 教学/简单对话）。"""
-    prompt = PromptTemplate.from_template("{input}")
-    class PromptRequest(BaseModel):
-        input: str = Field(..., description="Prompt text")
-    def resolve_chat_model():
-        base = (os.getenv("OPENAI_BASE_URL") or "").lower()
-        if "deepseek" in base:
-            m = os.getenv("DEEPSEEK_MODEL") or os.getenv("DS_MODEL") or os.getenv("OPENAI_MODEL") or "deepseek-chat"
-            s = m.strip().lower().replace("_", "-")
-            if s in ("deepseek", "deepseek-chat", "chat", "deepseekchat"):
-                return "deepseek-chat"
-            return m
-        return os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
-    def resolve_base_url():
-        base = (
-            os.getenv("DEEPSEEK_BASE_URL")
-            or os.getenv("DEEPSEEK_API_BASE")
-            or os.getenv("OPENAI_BASE_URL")
-            or os.getenv("OPENAI_API_BASE")
-            or ""
-        )
-        if "deepseek" in base and not base.rstrip("/").endswith("/v1"):
-            return base.rstrip("/") + "/v1"
-        return base
-    def call_llm(input_text: str):
-        from langchain_core.messages import AIMessage
-        if not os.getenv("OPENAI_API_KEY"):
-            return AIMessage(content="缺少 OPENAI_API_KEY，无法调用真实模型。")
-        key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
-        bu = resolve_base_url()
-        mm = resolve_chat_model()
-        def invoke(m):
-            return ChatOpenAI(model=m, temperature=0, api_key=key, base_url=bu).invoke(input_text)
-        try:
-            return invoke(mm)
-        except Exception as e:
-            msg = str(e)
-            if "Model Not Exist" in msg and "deepseek" in bu.lower():
-                for alt in ("deepseek-chat", "deepseek-reasoner"):
-                    if alt != mm:
-                        try:
-                            return invoke(alt)
-                        except Exception:
-                            pass
-            return AIMessage(content=f"模型调用失败: {e}; base_url={bu}; model={mm}")
-    llm = RunnableLambda(call_llm)
-    def normalize(req: PromptRequest) -> dict:
-        return {"input": req.input}
-    return (
-        RunnableLambda(normalize)
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
 
 # 加载 .env 与离线配置（HF）
 load_dotenv()
@@ -258,8 +202,6 @@ os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 rag_chain = build_chain()
 app = FastAPI(title="知识库智能助手", version="1.0")
 add_routes(app, rag_chain, path="/consumer_ai")
-prompt_chain = build_prompt_chain()
-add_routes(app, prompt_chain, path="/prompt_ai")
 
 
 if __name__ == "__main__":
