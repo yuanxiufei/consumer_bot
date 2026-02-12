@@ -48,3 +48,4 @@ scripts.quickstart-dry = "python -m consumer_bot.quickstart --input '你好，La
 scripts.data_prep = "python -m consumer_bot.data_prep --url https://www.gov.cn/jrzg/2013-10/25/content_2515601.htm --persist-dir ./chroma_db"
 scripts.data_prep-dry = "python -m consumer_bot.data_prep --url https://www.gov.cn/jrzg/2013-10/25/content_2515601.htm --persist-dir ./chroma_db --dry-run"
 scripts.bot = "python -m consumer_bot.bot"
+scripts.prompt_ai = "python -m consumer_bot.prompt_ai"
