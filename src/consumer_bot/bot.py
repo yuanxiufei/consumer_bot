@@ -21,6 +21,7 @@ from langchain_openai import ChatOpenAI
 from langserve import add_routes
 import json
 import chromadb
+from pydantic import BaseModel, Field
 
 
 def format_docs(docs):
@@ -77,8 +78,8 @@ def build_chain():
                 return {"context": context, "sources": sources}
             except Exception:
                 return {"context": "", "sources": ""}
-        context = RunnableLambda(lambda q: get_ctx_src(q)["context"])
-        sources = RunnableLambda(lambda q: get_ctx_src(q)["sources"])
+        context = q | RunnableLambda(lambda question: get_ctx_src(question)["context"])
+        sources = q | RunnableLambda(lambda question: get_ctx_src(question)["sources"])
     elif os.path.exists("./data/offline_docs.json"):
         # 3) 回退离线 BM25：使用 offline_docs.json 构建检索器
         from langchain_core.documents import Document
@@ -108,8 +109,8 @@ def build_chain():
                     return {"context": context, "sources": sources}
                 except Exception:
                     return {"context": "", "sources": ""}
-            context = RunnableLambda(lambda q: get_ctx_src(q)["context"])
-            sources = RunnableLambda(lambda q: get_ctx_src(q)["sources"])
+            context = q | RunnableLambda(lambda question: get_ctx_src(question)["context"])
+            sources = q | RunnableLambda(lambda question: get_ctx_src(question)["sources"])
         else:
             retriever = RunnableLambda(lambda _: [])
             context = RunnableLambda(lambda _: "")
@@ -125,6 +126,23 @@ def build_chain():
         "maximum and keep the answer concise.\n\nQuestion: {question}\n\nContext: {context}\n\nSources: {sources}\n\nAnswer:"
     )
     prompt = PromptTemplate.from_template(prompt_template_str)
+    class QuestionRequest(BaseModel):
+        question: str = Field("你好", description="User question")
+    def pick_question(x):
+        if isinstance(x, dict):
+            v = x.get("question") or x.get("input") or x.get("root")
+            if v is None:
+                for val in x.values():
+                    if isinstance(val, str):
+                        v = val
+                        break
+            if v is None:
+                return "你好"
+            return v if isinstance(v, str) else str(v)
+        if isinstance(x, str):
+            return x
+        return "你好"
+    q = RunnableLambda(pick_question)
 
     def resolve_chat_model():
         """统一模型名解析。
@@ -185,11 +203,11 @@ def build_chain():
 
     # LCEL 链：拼接上下文→提示词→LLM→解析器
     return (
-        {"context": context, "sources": sources, "question": RunnablePassthrough()}
+        {"context": context, "sources": sources, "question": q}
         | prompt
         | llm
         | StrOutputParser()
-    )
+    ).with_types(input_type=QuestionRequest)
 
 
 # 加载 .env 与离线配置（HF）
