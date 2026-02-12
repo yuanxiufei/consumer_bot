@@ -1,0 +1,50 @@
+[build-system]
+build-backend = "pdm.backend"
+requires = [ "pdm-backend" ]
+
+[project]
+name = "consumer-bot"
+version = "0.1.0"
+description = "Default template for PDM package"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+  { name = "reginyuan", email = "2496943860@qq.com" },
+]
+requires-python = ">=3.12"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+  "bs4>=0.0.2",
+  "chromadb>=1.5",
+  "fastapi>=0.128.8",
+  "langchain>=1.2.10",
+  "langchain-openai>=1.1.9",
+  "langchainhub>=0.1.21",
+  "langserve>=0.3.3",
+  "sse-starlette>=3.2",
+  "langchain-community>=0.4.1",
+  "python-dotenv>=1.2.1",
+  "langchain-huggingface>=1.2.0",
+  "sentence-transformers>=5.2.2",
+  "rank-bm25>=0.2.2",
+]
+
+[dependency-groups]
+dev = [
+  "pyproject-fmt>=2.15.3",
+]
+
+[tool.pdm]
+distribution = true
+scripts.fmt = "pyproject-fmt pyproject.toml"
+scripts.fmt-check = "pyproject-fmt --check pyproject.toml"
+scripts.quickstart = "python -m consumer_bot.quickstart --input '你好，LangChain 快速入门示例'"
+scripts.quickstart-dry = "python -m consumer_bot.quickstart --input '你好，LangChain 快速入门示例' --dry-run"
+scripts.data_prep = "python -m consumer_bot.data_prep --url https://www.gov.cn/jrzg/2013-10/25/content_2515601.htm --persist-dir ./chroma_db"
+scripts.data_prep-dry = "python -m consumer_bot.data_prep --url https://www.gov.cn/jrzg/2013-10/25/content_2515601.htm --persist-dir ./chroma_db --dry-run"
+scripts.bot = "python -m consumer_bot.bot"
